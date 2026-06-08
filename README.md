@@ -1,116 +1,326 @@
-# Codeforces Intelligence Dashboard
+# Codeforces Intelligence
 
-A Jupyter notebook for analyzing and visualizing your Codeforces competitive programming performance.
+**Codeforces Intelligence** is a data-driven analytics platform for competitive programmers. It analyzes a user's Codeforces history, extracts meaningful training patterns, identifies strengths and weaknesses, and uses machine learning to model rating growth.
 
-## Overview
+The goal is to answer questions such as:
 
-This project provides comprehensive analysis of:
-- **Rating Progression**: Track how your official rating changes over contest history
-- **Practice Patterns**: Analyze problem difficulty distribution during practice
-- **Skill Metrics**: Evaluate performance gaps and identify strong/weak topics
-- **Topic Analysis**: See which algorithmic topics you excel at
+* Which topics am I strongest in?
+* Which topics are holding me back?
+* Am I practicing above my current level?
+* What factors correlate most with rating growth?
+* What rating can I realistically reach in the next few contests?
 
-## Quick Start
-
-### Requirements
-- Python 3.8+
-- Jupyter Notebook/Lab
-- Libraries: `requests`, `pandas`, `matplotlib`, `seaborn`, `numpy`
-
-### Installation
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start Jupyter
-jupyter notebook
-```
-
-### Usage
-
-1. Open `cpintelligence_clean.ipynb`
-2. Update the `USERNAME` variable in the first code cell with your Codeforces handle
-3. Run all cells sequentially
+---
 
 ## Features
 
-### Data Source
-- Fetches real-time data from the official [Codeforces API](https://codeforces.com/apiHelp)
-- No authentication required for public profiles
+### User Analytics
 
-### Visualizations
+* Codeforces API integration
+* Contest rating history analysis
+* Practice history analysis
+* Problem difficulty tracking
+* Topic-wise skill profiling
 
-**Panel 1: Rating Progression**
-- Line chart showing official rating changes
-- Visual markers for rating tier boundaries (Pupil: 1200, Specialist: 1400)
+### Performance Metrics
 
-**Panel 2: Practice Difficulty**
-- Scatter plot of individual solved problems
-- 20-problem moving average trend line
-- Shows difficulty growth relative to contest ratings
+* Current rating and progression
+* Average solved problem rating
+* Hardest solved problem
+* Practice gap analysis
+* Topic diversity analysis
+* Difficulty progression tracking
 
-**Panel 3: Performance Gap**
-- Measures (Problem Rating - User Rating)
-- Positive gap = practicing above current level
-- Useful indicator of training intensity
+### Visualization
 
-**Panel 4: Topic Skills**
-- Bar chart of top 10 problem topics
-- Ranked by average solved difficulty
-- Identifies strengths and improvement areas
+* Rating trajectory
+* Practice difficulty trends
+* Topic skill profiles
+* Learning progression heatmaps
+* Rating vs practice correlations
 
-## Example Output
+### Machine Learning
 
-The notebook generates a 4-panel dashboard showing:
-- Time-based rating growth curve
-- Practice volume and intensity trends
-- Performance deficit/surplus analysis
-- Topic-based skill ranking
+* Rating growth prediction using XGBoost
+* Feature importance analysis
+* Training pattern discovery
+* Performance forecasting
 
-## Data Processing
+---
 
-1. **Deduplication**: Removes duplicate submissions of same problem
-2. **Filtering**: Keeps only successful submissions (verdict = "OK")
-3. **Temporal Alignment**: Matches practice difficulties to contest ratings
-4. **Aggregation**: Calculates statistics by topic and time period
+## Motivation
+There are tons of resources availabe on the internet for competitive programming, but not of them stand out as personalised and guided. Also, programmers often forget to track their weak topics, focusing on solving only easy or problems in their comfort space. Codeforces intelligence tends to provide a meaningful to way for programmers to upskill and constantly track their imrpovement
 
-## Metrics Explained
+---
 
-- **Average Problem Rating**: Mean difficulty of solved problems
-- **Performance Gap**: How far ahead/behind you practice relative to current rating
-- **Rolling Average**: 20-problem moving average of practice difficulty
-- **Topic Skills**: Average difficulty solved per problem category
+## Progress Update
 
-## Files
+I have completed the initial data extraction and exploratory analysis using the Codeforces API.
 
-- `cpintelligence_clean.ipynb` - Main analysis notebook (ready for GitHub)
-- `README.md` - This file
-- `requirements.txt` - Python dependencies
+One of the first questions I investigated was:
 
-## Notes
+## Does solving more problems lead to a higher rating?
 
-- Data is fetched real-time from Codeforces API
-- Deduplication ensures each problem is counted once
-- All timestamps are converted to local timezone
-- Missing ratings are handled gracefully
+Across the users and data samples analyzed so far, there appears to be a positive relationship between problem-solving volume and rating. However, the relationship is not strong enough on its own to serve as a predictive feature. This reinforced the need for more informative metrics beyond simple aggregates such as Average Training Rating (ATR).
 
-## Customization
+Current focus has shifted toward identifying and engineering stronger features, such as:
 
-Edit the notebook to:
-- Change plot colors and styles
-- Add additional statistical measures
-- Filter by date range
-- Export visualizations as images
+Practice difficulty relative to user rating
+Practice volume over different time windows
+Topic diversity
+Topic-specific proficiency
+Difficulty progression over time
+Recent activity trends
+Data Collection
 
-## License
+The next milestone is building a large-scale scraper.
 
-MIT License - Feel free to use and modify
+One challenge is that Codeforces does not expose a public API endpoint for retrieving all user handles or leaderboard rankings. If such an endpoint existed, collecting a representative user sample would be straightforward.
 
-## Contributing
+As a result, I am currently exploring alternative approaches for obtaining usernames, including:
 
-Pull requests and suggestions welcome!
+Contest standings pages
+Public ranking pages
+Other publicly available Codeforces data sources
+Dataset Goal
 
-## Disclaimer
+The current target is to collect data from approximately 500-800 users distributed across a broad rating spectrum, from Newbie to Grandmaster.
 
-This tool is for personal analysis only. Always respect Codeforces API rate limits (not more than 5 requests per second).
+For each user, I plan to generate roughly 200-300 contest-level feature records, resulting in a dataset large enough for meaningful statistical analysis and machine learning experiments.
+
+Next Steps
+Build the username collection pipeline.
+Implement large-scale data scraping and storage.
+Engineer contest-level features.
+Construct the training dataset.
+Train baseline models before moving to XGBoost.
+
+---
+
+## Architecture
+
+```text
+Codeforces API
+       │
+       ▼
+Data Collection Layer
+       │
+       ▼
+Data Cleaning & Feature Engineering
+       │
+       ▼
+Analytics Engine
+       │
+       ├── Visual Reports
+       │
+       └── ML Pipeline (XGBoost)
+                │
+                ▼
+        Rating Growth Prediction
+```
+
+---
+
+## Project Structure
+
+```text
+codeforces-intelligence/
+│
+├── data/
+│   ├── raw/
+│   └── processed/
+│
+├── notebooks/
+│   ├── exploration.ipynb
+│   └── feature_engineering.ipynb
+│
+├── src/
+│   ├── collector.py
+│   ├── analyzer.py
+│   ├── feature_builder.py
+│   ├── visualizer.py
+│   └── predictor.py
+│
+├── models/
+│   └── xgboost_model.json
+│
+├── reports/
+│
+├── requirements.txt
+│
+└── README.md
+```
+
+---
+
+## Core Features Engineered
+
+For every contest, the platform computes:
+
+### Practice Features
+
+* Number of problems solved in last 7 days
+* Number of problems solved in last 30 days
+* Average problem rating
+* Median problem rating
+* Maximum problem rating
+* Practice gap
+
+where
+
+[
+\text{Practice Gap}
+===================
+
+## \text{Problem Rating}
+
+\text{Current User Rating}
+]
+
+### Topic Features
+
+* Topic frequencies
+* Topic diversity
+* Topic-specific average ratings
+* Topic growth trends
+
+### Contest Features
+
+* Previous rating
+* Rating volatility
+* Contest activity frequency
+* Historical performance trends
+
+---
+
+## Machine Learning Pipeline
+
+### Model
+
+XGBoost Regressor
+
+### Prediction Target
+
+```text
+Future Rating
+```
+
+or
+
+```text
+Rating Change in Next Contest
+```
+
+### Example Features
+
+```text
+Average Practice Difficulty
+Practice Gap
+Practice Volume
+Topic Diversity
+DP Skill Score
+Graphs Skill Score
+Math Skill Score
+Recent Rating Trend
+```
+
+### Output
+
+```text
+Predicted Rating Gain: +83
+
+Expected Rating:
+1324 → 1407
+```
+
+---
+
+## Example Insights
+
+```text
+Current Rating: 1250
+
+Average Practice Difficulty: 1420
+
+Average Practice Gap: +170
+
+Strongest Topics:
+- Graphs
+- Math
+- Greedy
+
+Weakest Topics:
+- DP
+- Geometry
+
+Predicted Next Rating:
+1335
+```
+
+---
+
+## Technologies
+
+* Python
+* Pandas
+* NumPy
+* Matplotlib
+* Seaborn
+* Scikit-Learn
+* XGBoost
+* Jupyter Notebook
+* Codeforces API
+
+---
+
+## Future Roadmap
+
+### Phase 1
+
+* Data collection
+* User reports
+* Visualization dashboard
+
+### Phase 2
+
+* Topic skill scoring
+* Practice gap analysis
+* Progress heatmaps
+
+### Phase 3
+
+* XGBoost rating prediction
+* Feature importance analysis
+
+### Phase 4
+
+* Personalized problem recommendations
+* Weak-topic detection
+* Training plan generation
+
+### Phase 5
+
+* Multi-user benchmarking
+* Similar-user discovery
+* Rating growth simulation
+
+---
+
+## Example Research Questions
+
+* Do users who consistently solve problems above their rating improve faster?
+* Which topics are most predictive of reaching Specialist?
+* What practice habits distinguish Experts from Candidates?
+* How much does topic diversity affect rating growth?
+
+---
+
+### Author
+
+**Ashutosh Jalan**
+
+Computer Science @ HKU
+
+Competitive Programming • Machine Learning • Data Analytics
+
+
