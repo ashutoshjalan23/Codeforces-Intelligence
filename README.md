@@ -33,10 +33,10 @@ python bracket_predictor.py   # requires rf_rating.pkl
 ### Run per-user analysis
 
 ```bash
-python insights.py <codeforces_username>
+python predictor.py <codeforces_username>
 ```
 
-> **Note:** Model files are not committed to the repository. You must train at least `rf_model.py` before running `insights.py`.
+> **Note:** Model files are not committed to the repository. You must train at least `rf_model.py` before running `predictor.py`.
 
 ---
 
@@ -63,11 +63,11 @@ codeforces-intelligence/
 ├── rf_model.py             # Random Forest model (best MAE)
 ├── lgbm_model.py           # LightGBM model
 ├── bracket_predictor.py    # Per-rating-bracket RF models + per-bracket MAE breakdown
-├── insights.py             # Per-user report: predicted delta, topics, peer comparison
+├── predictor.py             # Per-user report: predicted delta, topics, peer comparison
 ├── ml_dataset.csv          # Generated training dataset (one row per user per contest)
 ├── models/
 │   ├── xgboost_rating.json
-│   ├── rf_rating.pkl       # Used by insights.py
+│   ├── rf_rating.pkl       # Used by predictor.py
 │   ├── lgbm_rating.pkl
 │   ├── ridge_rating.pkl
 │   ├── linear_rating.pkl
@@ -119,7 +119,7 @@ All predictors split **by user** (80/20) to prevent data leakage, and evaluate a
 ### 4. Run per-user analysis
 
 ```bash
-python insights.py <codeforces_username>
+python predictor.py <codeforces_username>
 ```
 
 Fetches live data from the Codeforces API, builds the same feature set used during training, runs the RF model, and prints a report with predicted rating delta, topic strengths/weaknesses, and comparison against peers of similar rating.
@@ -176,7 +176,7 @@ All models trained on ~366K rows, 46 features, user-based 80/20 split.
 | Ridge Regression | — | Regularized linear; correlated features |
 | Linear Regression | — | Weakest; no regularization |
 
-`insights.py` uses the Random Forest model (`models/rf_rating.pkl`).
+`predictor.py` uses the Random Forest model (`models/rf_rating.pkl`).
 
 ### Per-bracket MAE (Random Forest)
 
