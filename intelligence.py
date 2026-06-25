@@ -8,7 +8,7 @@ import requests
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime, timedelta
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -113,8 +113,17 @@ def process_submissions(submissions, ratings_data):
             except:
                 pass
     
-    df_practice = pd.DataFrame(practice_data).sort_values("date").reset_index(drop=True)
-    df_contests = pd.DataFrame(contests_data).sort_values("date").reset_index(drop=True)
+    practice_cols = ["date", "problem_rating", "tag", "contest_id", "problem_index", "is_contest"]
+    contest_cols  = ["date", "rating", "old_rating"]
+
+    df_practice = (
+        pd.DataFrame(practice_data, columns=practice_cols).sort_values("date").reset_index(drop=True)
+        if practice_data else pd.DataFrame(columns=practice_cols)
+    )
+    df_contests = (
+        pd.DataFrame(contests_data, columns=contest_cols).sort_values("date").reset_index(drop=True)
+        if contests_data else pd.DataFrame(columns=contest_cols)
+    )
     
     return df_practice, df_contests
 
@@ -307,6 +316,108 @@ def extract_ml_features(username, stats, df_practice, df_contests):
             }
     
     return features
+
+
+TOPICS = [
+    "Dp", "Greedy", "Graphs", "Math", "Implementation",
+    "Binary Search", "Sortings", "Strings", "Trees", "Two Pointers"
+]
+
+
+def extract_contest_level_features(username, df_practice, df_contests):
+    rows = []
+
+    if df_contests.empty or df_practice.empty:
+        return rows
+
+    has_gap = "gap" in df_practice.columns
+
+    for i, contest in df_contests.iterrows():
+        if pd.isna(contest.get("old_rating")):
+            continue
+
+        contest_date = contest["date"]
+        rating_before = float(contest["old_rating"])
+        rating_after = float(contest["rating"])
+        target = rating_after - rating_before
+
+        prior = df_practice[df_practice["date"] < contest_date]
+        prior_contests = df_contests[df_contests["date"] < contest_date]
+
+        if prior.empty:
+            continue
+
+        w7  = prior[prior["date"] >= contest_date - timedelta(days=7)]
+        w30 = prior[prior["date"] >= contest_date - timedelta(days=30)]
+        w90 = prior[prior["date"] >= contest_date - timedelta(days=90)]
+
+        peak_so_far = float(prior_contests["rating"].max()) if not prior_contests.empty else rating_before
+
+        changes = prior_contests["rating"].diff().dropna()
+        trend_last_3 = float(changes.iloc[-3:].mean()) if len(changes) >= 3 else (float(changes.mean()) if len(changes) > 0 else np.nan)
+        trend_last_5 = float(changes.iloc[-5:].mean()) if len(changes) >= 5 else (float(changes.mean()) if len(changes) > 0 else np.nan)
+        volatility   = float(changes.std()) if len(changes) >= 2 else np.nan
+
+        contests_90d = len(prior_contests[prior_contests["date"] >= contest_date - timedelta(days=90)])
+        days_since_last_contest  = int((contest_date - prior_contests["date"].max()).days) if not prior_contests.empty else np.nan
+        days_since_last_practice = int((contest_date - prior["date"].max()).days) if not prior.empty else np.nan
+
+        total_90 = max(len(w90), 1)
+        frac_sub1200   = len(w90[w90["problem_rating"] < 1200]) / total_90
+        frac_1200_1600 = len(w90[(w90["problem_rating"] >= 1200) & (w90["problem_rating"] < 1600)]) / total_90
+        frac_1600_2000 = len(w90[(w90["problem_rating"] >= 1600) & (w90["problem_rating"] < 2000)]) / total_90
+        frac_2000_plus = len(w90[w90["problem_rating"] >= 2000]) / total_90
+
+        row = {
+            "username":           username,
+            "contest_index":      i,
+            "rating_before":      rating_before,
+            "peak_rating_so_far": peak_so_far,
+            "gap_to_peak":        peak_so_far - rating_before,
+
+            "problems_7d":  len(w7),
+            "problems_30d": len(w30),
+            "problems_90d": len(w90),
+
+            "avg_rating_7d":  float(w7["problem_rating"].mean())  if not w7.empty  else np.nan,
+            "avg_rating_30d": float(w30["problem_rating"].mean()) if not w30.empty else np.nan,
+            "avg_rating_90d": float(w90["problem_rating"].mean()) if not w90.empty else np.nan,
+
+            "max_rating_30d": float(w30["problem_rating"].max()) if not w30.empty else np.nan,
+            "max_rating_90d": float(w90["problem_rating"].max()) if not w90.empty else np.nan,
+
+            "avg_gap_7d":  float(w7["gap"].mean())  if (has_gap and not w7.empty)  else np.nan,
+            "avg_gap_30d": float(w30["gap"].mean()) if (has_gap and not w30.empty) else np.nan,
+            "avg_gap_90d": float(w90["gap"].mean()) if (has_gap and not w90.empty) else np.nan,
+
+            "unique_topics_30d": int(w30["tag"].nunique()) if not w30.empty else 0,
+            "unique_topics_90d": int(w90["tag"].nunique()) if not w90.empty else 0,
+
+            "trend_last_3":    trend_last_3,
+            "trend_last_5":    trend_last_5,
+            "rating_volatility": volatility,
+            "contests_90d":    contests_90d,
+
+            "days_since_last_contest":  days_since_last_contest,
+            "days_since_last_practice": days_since_last_practice,
+
+            "frac_sub1200":   frac_sub1200,
+            "frac_1200_1600": frac_1200_1600,
+            "frac_1600_2000": frac_1600_2000,
+            "frac_2000_plus": frac_2000_plus,
+
+            "target": target,
+        }
+
+        for topic in TOPICS:
+            t = prior[prior["tag"] == topic]
+            col = topic.lower().replace(" ", "_")
+            row[f"topic_{col}_count"]      = len(t)
+            row[f"topic_{col}_avg_rating"] = float(t["problem_rating"].mean()) if not t.empty else np.nan
+
+        rows.append(row)
+
+    return rows
 
 
 def generate_report(username, stats, df_practice, df_contests, show_plot=True):

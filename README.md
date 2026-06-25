@@ -1,326 +1,206 @@
 # Codeforces Intelligence
 
-**Codeforces Intelligence** is a data-driven analytics platform for competitive programmers. It analyzes a user's Codeforces history, extracts meaningful training patterns, identifies strengths and weaknesses, and uses machine learning to model rating growth.
-
-The goal is to answer questions such as:
-
-* Which topics am I strongest in?
-* Which topics are holding me back?
-* Am I practicing above my current level?
-* What factors correlate most with rating growth?
-* What rating can I realistically reach in the next few contests?
+A data-driven analytics and ML platform for competitive programmers. Analyzes Codeforces history, extracts temporal training patterns, and predicts rating changes contest by contest.
 
 ---
 
-## Features
+## Setup
 
-### User Analytics
-
-* Codeforces API integration
-* Contest rating history analysis
-* Practice history analysis
-* Problem difficulty tracking
-* Topic-wise skill profiling
-
-### Performance Metrics
-
-* Current rating and progression
-* Average solved problem rating
-* Hardest solved problem
-* Practice gap analysis
-* Topic diversity analysis
-* Difficulty progression tracking
-
-### Visualization
-
-* Rating trajectory
-* Practice difficulty trends
-* Topic skill profiles
-* Learning progression heatmaps
-* Rating vs practice correlations
-
-### Machine Learning
-
-* Rating growth prediction using XGBoost
-* Feature importance analysis
-* Training pattern discovery
-* Performance forecasting
-
----
-
-## Motivation
-There are tons of resources availabe on the internet for competitive programming, but not of them stand out as personalised and guided. Also, programmers often forget to track their weak topics, focusing on solving only easy or problems in their comfort space. Codeforces intelligence tends to provide a meaningful to way for programmers to upskill and constantly track their imrpovement
-
----
-
-## Progress Update
-
-I have completed the initial data extraction and exploratory analysis using the Codeforces API.
-
-One of the first questions I investigated was:
-
-## Does solving more problems lead to a higher rating?
-
-Across the users and data samples analyzed so far, there appears to be a positive relationship between problem-solving volume and rating. However, the relationship is not strong enough on its own to serve as a predictive feature. This reinforced the need for more informative metrics beyond simple aggregates such as Average Training Rating (ATR).
-
-Current focus has shifted toward identifying and engineering stronger features, such as:
-
-Practice difficulty relative to user rating
-Practice volume over different time windows
-Topic diversity
-Topic-specific proficiency
-Difficulty progression over time
-Recent activity trends
-Data Collection
-
-The next milestone is building a large-scale scraper.
-
-One challenge is that Codeforces does not expose a public API endpoint for retrieving all user handles or leaderboard rankings. If such an endpoint existed, collecting a representative user sample would be straightforward.
-
-As a result, I am currently exploring alternative approaches for obtaining usernames, including:
-
-Contest standings pages
-Public ranking pages
-Other publicly available Codeforces data sources
-Dataset Goal
-
-The current target is to collect data from approximately 500-800 users distributed across a broad rating spectrum, from Newbie to Grandmaster.
-
-For each user, I plan to generate roughly 200-300 contest-level feature records, resulting in a dataset large enough for meaningful statistical analysis and machine learning experiments.
-
-Next Steps
-Build the username collection pipeline.
-Implement large-scale data scraping and storage.
-Engineer contest-level features.
-Construct the training dataset.
-Train baseline models before moving to XGBoost.
-
----
-
-## Architecture
-
-```text
-Codeforces API
-       │
-       ▼
-Data Collection Layer
-       │
-       ▼
-Data Cleaning & Feature Engineering
-       │
-       ▼
-Analytics Engine
-       │
-       ├── Visual Reports
-       │
-       └── ML Pipeline (XGBoost)
-                │
-                ▼
-        Rating Growth Prediction
+```bash
+git clone <repo-url>
+cd codeforces-intelligence
+pip install -r requirements.txt
 ```
+
+### Reproduce the dataset and models from scratch
+
+```bash
+python scraper.py          # collect data → ml_dataset.csv (takes a while)
+python rf_model.py         # train best model → models/rf_rating.pkl
+```
+
+### Or train all models
+
+```bash
+python xgboost_model.py
+python rf_model.py
+python lgbm_model.py
+python ridge_model.py
+python linear_model.py
+python bracket_predictor.py   # requires rf_rating.pkl
+```
+
+### Run per-user analysis
+
+```bash
+python insights.py <codeforces_username>
+```
+
+> **Note:** Model files are not committed to the repository. You must train at least `rf_model.py` before running `insights.py`.
+
+---
+
+## What it does
+
+- Fetches submission history and contest ratings from the Codeforces API
+- Engineers contest-level features from practice patterns (windowed, topic-wise, difficulty-based)
+- Builds a structured dataset where each row represents one contest entry for one user
+- Trains and compares multiple regression models to predict rating change in the next contest
+- Outputs feature importance and per-bracket performance breakdowns
+- Runs a per-user analysis report with predicted delta, topic strengths/weaknesses, and peer comparison
 
 ---
 
 ## Project Structure
 
-```text
+```
 codeforces-intelligence/
-│
-├── data/
-│   ├── raw/
-│   └── processed/
-│
-├── notebooks/
-│   ├── exploration.ipynb
-│   └── feature_engineering.ipynb
-│
-├── src/
-│   ├── collector.py
-│   ├── analyzer.py
-│   ├── feature_builder.py
-│   ├── visualizer.py
-│   └── predictor.py
-│
+├── intelligence.py         # API fetching, feature engineering, visualization
+├── scraper.py              # Batch data collection pipeline with resume support
+├── xgboost_model.py        # XGBoost training, evaluation, feature importance
+├── linear_model.py         # Linear Regression model
+├── ridge_model.py          # Ridge Regression model
+├── rf_model.py             # Random Forest model (best MAE)
+├── lgbm_model.py           # LightGBM model
+├── bracket_predictor.py    # Per-rating-bracket RF models + per-bracket MAE breakdown
+├── insights.py             # Per-user report: predicted delta, topics, peer comparison
+├── ml_dataset.csv          # Generated training dataset (one row per user per contest)
 ├── models/
-│   └── xgboost_model.json
-│
-├── reports/
-│
-├── requirements.txt
-│
-└── README.md
+│   ├── xgboost_rating.json
+│   ├── rf_rating.pkl       # Used by insights.py
+│   ├── lgbm_rating.pkl
+│   ├── ridge_rating.pkl
+│   ├── linear_rating.pkl
+│   └── bracket/            # Per-bracket RF models
+├── usernames.txt
+└── requirements.txt
 ```
 
 ---
 
-## Core Features Engineered
+## Pipeline
 
-For every contest, the platform computes:
+### 1. Collect usernames by division
 
-### Practice Features
+```bash
+python scraper.py
+```
 
-* Number of problems solved in last 7 days
-* Number of problems solved in last 30 days
-* Average problem rating
-* Median problem rating
-* Maximum problem rating
-* Practice gap
+Calls `user.ratedList` to fetch all rated CF users, samples up to 1000 per division (Newbie → Grandmaster+), writes `usernames.txt`, then immediately starts building the dataset.
 
-where
+| Division | Rating Range |
+|---|---|
+| Newbie | < 1200 |
+| Pupil | 1200 – 1399 |
+| Specialist | 1400 – 1599 |
+| Expert | 1600 – 1899 |
+| Candidate Master | 1900 – 2099 |
+| Master | 2100 – 2299 |
+| International Master | 2300 – 2399 |
+| Grandmaster+ | ≥ 2400 |
 
-[
-\text{Practice Gap}
-===================
+### 2. Dataset building (resumable)
 
-## \text{Problem Rating}
+The scraper writes each user's rows to `ml_dataset.csv` immediately after processing. If interrupted, re-running picks up from where it left off — already-processed users are detected from the CSV and skipped.
 
-\text{Current User Rating}
-]
+### 3. Train models
 
-### Topic Features
+```bash
+python xgboost_model.py      # XGBoost
+python rf_model.py           # Random Forest — tries 300/500/1000 trees, saves best
+python lgbm_model.py         # LightGBM
+python ridge_model.py        # Ridge Regression
+python linear_model.py       # Linear Regression
+python bracket_predictor.py  # Per-bracket RF + breakdown (requires rf_rating.pkl)
+```
 
-* Topic frequencies
-* Topic diversity
-* Topic-specific average ratings
-* Topic growth trends
+All predictors split **by user** (80/20) to prevent data leakage, and evaluate against a zero-prediction baseline.
 
-### Contest Features
+### 4. Run per-user analysis
 
-* Previous rating
-* Rating volatility
-* Contest activity frequency
-* Historical performance trends
+```bash
+python insights.py <codeforces_username>
+```
+
+Fetches live data from the Codeforces API, builds the same feature set used during training, runs the RF model, and prints a report with predicted rating delta, topic strengths/weaknesses, and comparison against peers of similar rating.
 
 ---
 
-## Machine Learning Pipeline
+## Features Engineered
 
-### Model
+Each row in `ml_dataset.csv` corresponds to one contest a user participated in. All features are computed from practice history **strictly before** that contest date.
 
-XGBoost Regressor
+### Practice volume (windowed)
+- `problems_7d`, `problems_30d`, `problems_90d`
 
-### Prediction Target
+### Practice difficulty (windowed)
+- `avg_rating_7d/30d/90d` — average problem rating solved
+- `max_rating_30d/90d` — hardest problem solved
+- `avg_gap_7d/30d/90d` — average (problem rating − user rating at time of solve)
 
-```text
-Future Rating
-```
+### Difficulty distribution (last 90 days)
+- `frac_sub1200`, `frac_1200_1600`, `frac_1600_2000`, `frac_2000_plus`
 
-or
+### Topic diversity
+- `unique_topics_30d`, `unique_topics_90d`
 
-```text
-Rating Change in Next Contest
-```
+### Per-topic stats (all prior history)
+For each of: DP, Greedy, Graphs, Math, Implementation, Binary Search, Sortings, Strings, Trees, Two Pointers:
+- `topic_<name>_count` — problems solved in that topic
+- `topic_<name>_avg_rating` — average difficulty of solved problems
 
-### Example Features
+### Rating momentum
+- `rating_before`, `peak_rating_so_far`, `gap_to_peak`
+- `trend_last_3`, `trend_last_5` — average rating change over last 3/5 contests
+- `rating_volatility` — std of all past rating changes
+- `contests_90d` — contest frequency
 
-```text
-Average Practice Difficulty
-Practice Gap
-Practice Volume
-Topic Diversity
-DP Skill Score
-Graphs Skill Score
-Math Skill Score
-Recent Rating Trend
-```
+### Activity cadence
+- `days_since_last_contest`
+- `days_since_last_practice`
 
-### Output
-
-```text
-Predicted Rating Gain: +83
-
-Expected Rating:
-1324 → 1407
-```
+### Target
+- `target` — rating change in this contest (positive = gain, negative = loss)
 
 ---
 
-## Example Insights
+## Model Comparison
 
-```text
-Current Rating: 1250
+All models trained on ~366K rows, 46 features, user-based 80/20 split.
 
-Average Practice Difficulty: 1420
+| Model | MAE | Notes |
+|---|---|---|
+| Random Forest | **45** | Best overall; 300–1000 trees auto-tuned |
+| LightGBM | 47 | Native null handling; fast training |
+| XGBoost | 47 | Strong baseline; early stopping |
+| Ridge Regression | — | Regularized linear; correlated features |
+| Linear Regression | — | Weakest; no regularization |
 
-Average Practice Gap: +170
+`insights.py` uses the Random Forest model (`models/rf_rating.pkl`).
 
-Strongest Topics:
-- Graphs
-- Math
-- Greedy
+### Per-bracket MAE (Random Forest)
 
-Weakest Topics:
-- DP
-- Geometry
+| Bracket | MAE | R² | Baseline MAE |
+|---|---|---|---|
+| < 1200 | 40.68 | 0.747 | 82.21 |
+| 1200 – 1600 | 43.42 | 0.284 | 51.20 |
+| 1600 – 1900 | 49.21 | 0.217 | 56.39 |
+| 1900 – 2100 | 50.95 | 0.174 | 56.65 |
+| 2100 – 2400 | 47.59 | 0.232 | 55.09 |
+| 2400+ | 49.67 | 0.263 | 58.42 |
 
-Predicted Next Rating:
-1335
-```
+Prediction is most reliable for users rated below 1200 (R²=0.75). For users above 1600, the model marginally beats the zero-delta baseline — contest performance at higher ratings is dominated by factors not captured in practice history alone.
+
+---
+
+## Data Scale
+
+~9,500 users × ~39 contests average = ~366,000 rows. Rating distribution is naturally skewed: 56% of rows are from users rated below 1600.
+
+Users with fewer than 10 contests are filtered before training via the `min_contests` parameter in `load_data`.
 
 ---
 
 ## Technologies
 
-* Python
-* Pandas
-* NumPy
-* Matplotlib
-* Seaborn
-* Scikit-Learn
-* XGBoost
-* Jupyter Notebook
-* Codeforces API
-
----
-
-## Future Roadmap
-
-### Phase 1
-
-* Data collection
-* User reports
-* Visualization dashboard
-
-### Phase 2
-
-* Topic skill scoring
-* Practice gap analysis
-* Progress heatmaps
-
-### Phase 3
-
-* XGBoost rating prediction
-* Feature importance analysis
-
-### Phase 4
-
-* Personalized problem recommendations
-* Weak-topic detection
-* Training plan generation
-
-### Phase 5
-
-* Multi-user benchmarking
-* Similar-user discovery
-* Rating growth simulation
-
----
-
-## Example Research Questions
-
-* Do users who consistently solve problems above their rating improve faster?
-* Which topics are most predictive of reaching Specialist?
-* What practice habits distinguish Experts from Candidates?
-* How much does topic diversity affect rating growth?
-
----
-
-### Author
-
-**Ashutosh Jalan**
-
-Computer Science @ HKU
-
-Competitive Programming • Machine Learning • Data Analytics
-
-
+Python · Pandas · NumPy · Scikit-Learn · XGBoost · LightGBM · Matplotlib · Codeforces API
